@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pedido de namoro</title>
+</head>
+<style>
+    body{
+        background-color: #D93644;
+    }
+    .painel { 
+        background-color: #DBD561;
+        margin: auto;
+        width: 600px;
+        height: 450px;
+        border-radius: 16px;
+        text-align: center;
+        padding-top: 30px;
+        font-family: 'Courier New', Courier, monospace;
+    }
+    #Sim {
+        height: 50px;
+        width: 70px;
+        background-color: #A64951;
+        border: 2px solid;
+        border-radius: 40px;
+        color: white;
+        margin-left: -80px;
+    }
+
+    #Nao {
+        position: absolute;
+        height: 50px;
+        width: 70px;
+        background-color: #A64951;
+        border: 2px solid;
+        border-radius: 40px;
+        color: white;
+        margin-left: 10px;
+    }
+</style>
+<body>
+    
+    <div class="painel">
+        <h1>Pedido Oficial</h1>
+
+        <img src="https://media0.giphy.com/media/3CCXHZWV6F6O9VQ7FL/200w.gif?cid=6c09b952i6tfbnlkwoezmewcbtr7h65jqg8k7m8nkgk84k8b&ep=v1_gifs_search&rid=200w.gif&ct=g" alt="">
+
+        <h2>Aceita namorar comigo? (E dengar também)</h2>
+
+        <a href="https://www.youtube.com/watch?v=-p0GD80gNjw"><button id="Sim">Sim!!</button></a>
+        <button onmouseover="fuja()" id="Nao">Não!!</button>
+
+    </div>
+
+    <script>
+        function fuja () {
+            var botaoNao = document.getElementById("Nao")
+
+            var largurajanela = window.innerWidth;
+            var alturajanela = window.innerHeight;
+
+            var maxX =largurajanela - botaoNao.offsetWidth
+            var maxY =alturajanela - botaoNao.offsetHeight
+
+            var aleatorioX =Math.floor(Math.random() * maxX);
+            var aleatorioY =Math.floor(Math.random() * maxY);
+
+            botaoNao.style.left = aleatorioX + "px"; 
+            botaoNao.style.top =aleatorioY + "px";
+
+        }
+    </script>
+</body>
+</html>

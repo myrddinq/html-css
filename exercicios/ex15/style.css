@@ -1,0 +1,20 @@
+@charset "UTF-8";
+/* Regra @Charset caso haja erro de pontuação */
+
+body {
+    background-color: rgb(144, 153, 94);
+    font-family: Verdana, Geneva, Tahoma, sans-serif;
+    font-size: 20px;
+}
+
+h1{
+    color: rgb(51, 38, 40);
+    background-color: rgb(197, 164, 18);
+}
+
+h2{
+    color: rgb(129, 106, 75);
+}
+p{
+    text-align: justify;
+}
