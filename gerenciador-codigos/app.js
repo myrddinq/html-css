@@ -587,7 +587,15 @@
       case 'remover': {
         const caixaEl = b.closest('.tech-builder-item');
         const grande = caixaEl && caixaEl.dataset.drag === b.dataset.path;
-        if (grande && !confirm('Excluir este bloco e todo o seu conteúdo?')) return;
+        if (grande) {
+          confirmar('Excluir este bloco e todo o seu conteúdo?', 'Excluir').then((ok) => {
+            if (!ok) return;
+            arr.splice(i, 1);
+            renderEditor();
+            alterou();
+          });
+          return;
+        }
         arr.splice(i, 1);
         break;
       }
@@ -702,7 +710,11 @@
       setTimeout(ajustarAltura, 400);
       setTimeout(ajustarAltura, 1200);
     };
-    iframe.srcdoc = `<!DOCTYPE html><html lang="pt-br"><head><meta charset="utf-8">${links}
+    // Onde links externos são bloqueados, uma cópia embutida do CSS pode ser fornecida (window.CSS_PREVIA_LOCAL)
+    const cabeca = typeof window.CSS_PREVIA_LOCAL === 'string'
+      ? links.replace(/<link[^>]*particularidades\.css[^>]*>/g, () => `<style>${window.CSS_PREVIA_LOCAL}</style>`)
+      : links;
+    iframe.srcdoc = `<!DOCTYPE html><html lang="pt-br"><head><meta charset="utf-8">${cabeca}
 <style>html,body{margin:0;background:transparent;overflow:hidden}body{padding:1px 0}</style></head>
 <body><div id="raiz">${corpo}</div></body></html>`;
   }
@@ -791,14 +803,39 @@
     aviso('Código duplicado');
   });
 
-  $('#btn-excluir').addEventListener('click', () => {
+  $('#btn-excluir').addEventListener('click', async () => {
     const c = atual();
-    if (!confirm(`Excluir "${c.nome}"? Essa ação não pode ser desfeita.`)) return;
+    if (!await confirmar(`Excluir "${c.nome}"? Essa ação não pode ser desfeita.`, 'Excluir')) return;
     db.codigos = db.codigos.filter((x) => x.id !== c.id);
     if (!db.codigos.length) db.codigos.push(Gerador.novoCodigo());
     selecionar(db.codigos[0].id);
     aviso('Código excluído');
   });
+
+  /* ---------- Confirmação (janela própria, sem confirm() do navegador) ---------- */
+
+  const modalConfirmar = $('#modal-confirmar');
+  let responderConfirmacao = null;
+
+  function confirmar(mensagem, textoBotao = 'Confirmar') {
+    if (responderConfirmacao) responderConfirmacao(false);
+    $('#texto-confirmar').textContent = mensagem;
+    $('#btn-confirmar-sim').textContent = textoBotao;
+    modalConfirmar.classList.add('aberto');
+    $('#btn-confirmar-nao').focus();
+    return new Promise((resolve) => { responderConfirmacao = resolve; });
+  }
+
+  function fecharConfirmacao(ok) {
+    modalConfirmar.classList.remove('aberto');
+    const r = responderConfirmacao;
+    responderConfirmacao = null;
+    if (r) r(ok);
+  }
+
+  $('#btn-confirmar-sim').addEventListener('click', () => fecharConfirmacao(true));
+  $('#btn-confirmar-nao').addEventListener('click', () => fecharConfirmacao(false));
+  modalConfirmar.addEventListener('click', (e) => { if (e.target === modalConfirmar) fecharConfirmacao(false); });
 
   /* ---------- Importar código colado ---------- */
 
@@ -815,7 +852,7 @@
   $$('[data-fechar-modal]').forEach((b) => b.addEventListener('click', () => abrirModal(false)));
   modal.addEventListener('click', (e) => { if (e.target === modal) abrirModal(false); });
 
-  function importarTexto(substituir) {
+  async function importarTexto(substituir) {
     const txt = $('#texto-importar').value.trim();
     const erro = $('#erro-importar');
     if (!txt) { erro.textContent = 'Cole o código primeiro.'; erro.hidden = false; return; }
@@ -829,7 +866,7 @@
     }
     if (substituir) {
       const a = atual();
-      if (!confirm(`Substituir todo o conteúdo de "${a.nome}" pelo código colado?`)) return;
+      if (!await confirmar(`Substituir todo o conteúdo de "${a.nome}" pelo código colado?`, 'Substituir')) return;
       c.id = a.id;
       db.codigos[db.codigos.indexOf(a)] = c;
     } else {
@@ -888,7 +925,11 @@
       salvar();
       aviso('Tudo salvo');
     }
-    if (e.key === 'Escape') { abrirModal(false); fecharMenus(); }
+    if (e.key === 'Escape') {
+      if (responderConfirmacao) return fecharConfirmacao(false);
+      abrirModal(false);
+      fecharMenus();
+    }
   });
 
   function renderTudo() {
