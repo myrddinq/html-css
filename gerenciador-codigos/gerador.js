@@ -1,14 +1,18 @@
 /*
  * Gerador: transforma os dados do formulário em código HTML/CSS
  * e faz o caminho inverso (lê um código colado e preenche os campos).
+ *
+ * Modelo: código -> seções -> blocos. Cada seção tem um título e uma
+ * lista de blocos (parágrafos, cartões, régua, etapas, árvore ou HTML livre),
+ * seguindo os componentes do particularidades.css.
  */
 const Gerador = (() => {
-  const CSS_PADRAO = 'https://gaaaaaaaaabs.github.io/goldenagerepositor.io/particularidades.css?v=4';
+  const CSS_BASE = 'https://gaaaaaaaaabs.github.io/goldenagerepositor.io/particularidades.css';
+  const CSS_PADRAO = CSS_BASE + '?v=1';
 
   const SVG_PADRAO = `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-  <path d="M50 10 L90 30 L90 70 L50 90 L10 70 L10 30 Z" fill="none" stroke="currentColor" stroke-width="3"/>
-  <path d="M30 30 L70 70 M70 30 L30 70" fill="none" stroke="currentColor" stroke-width="3"/>
-  <circle cx="50" cy="50" r="15" fill="none" stroke="currentColor" stroke-width="3"/>
+  <circle cx="50" cy="50" r="40" fill="none" stroke="currentColor" stroke-width="3"/>
+  <circle cx="50" cy="50" r="5" fill="currentColor"/>
 </svg>`;
 
   const CORES_PADRAO = {
@@ -19,20 +23,41 @@ const Gerador = (() => {
     borda: '#333333',
   };
 
+  // Molduras laterais prontas para os cartões (borda, cor do nome)
+  const MOLDURAS = {
+    nenhuma: ['', ''],
+    dourada: ['var(--gold, #c5a059)', 'var(--gold, #c5a059)'],
+    vermelha: ['#8b0000', '#ff4d4d'],
+    tema: ['var(--highlight)', 'var(--highlight)'],
+    verde: ['var(--success)', 'var(--success)'],
+    azul: ['var(--blue)', 'var(--blue)'],
+  };
+
   const uid = () => Math.random().toString(36).slice(2, 10);
 
   /* ---------- Modelos em branco ---------- */
 
-  function novaSecao(tipo) {
+  const novoItem = (rotulo = '', texto = '') => ({ id: uid(), estilo: 'normal', rotulo, texto });
+  const novoCartao = (o = {}) => ({
+    id: uid(), nome: 'Novo cartão', classe: 'normal', borda: '', corNome: '',
+    formato: 'padrao', intro: '', itens: [], ...o,
+  });
+  const novoEstagio = () => ({ id: uid(), faixa: '', tipo: 'neutro', nome: '', efeito: '' });
+  const novaAcao = () => ({ id: uid(), acao: '', pontos: 0 });
+  const novaEtapa = () => ({ id: uid(), nivel: 1, titulo: 'Nova etapa', texto: '' });
+  const novoNo = () => ({ id: uid(), nome: 'Nova habilidade', custo: '', tier: 1, texto: '' });
+  const novoCaminho = () => ({ id: uid(), titulo: 'Novo caminho', estilo: 'padrao', nos: [novoNo()] });
+  const novoParagrafo = () => '';
+
+  function novoBloco(tipo) {
     switch (tipo) {
       case 'texto':
-        return { id: uid(), tipo, titulo: 'Definição', paragrafos: [''] };
+        return { id: uid(), tipo, paragrafos: [''] };
       case 'cartoes':
-        return { id: uid(), tipo, titulo: 'Características', colunas: 1, cartoes: [novoCartao()] };
-      case 'ressonancia':
+        return { id: uid(), tipo, colunas: 'auto', cartoes: [novoCartao({ itens: [novoItem()] })] };
+      case 'regua':
         return {
           id: uid(), tipo,
-          titulo: 'Ressonância da Alma',
           intro: 'Todos os portadores iniciam o jogo com **0 Pontos**.',
           regua: { min: -100, rotuloMin: 'Queda', rotuloNeutro: 'Neutro', max: 100, rotuloMax: 'Ascensão', inicial: 0, rotuloMarcador: 'INÍCIO' },
           estagiosTitulo: 'Estágios de Sincronia',
@@ -42,25 +67,77 @@ const Gerador = (() => {
           acoesColunas: ['Ação', 'Impacto na Régua'],
           acoes: [novaAcao()],
         };
+      case 'etapas':
+        return { id: uid(), tipo, etapas: [novaEtapa()] };
+      case 'arvore':
+        return { id: uid(), tipo, caminhos: [
+          { ...novoCaminho(), titulo: 'Defesa', estilo: 'path-defense' },
+          { ...novoCaminho(), titulo: 'Ataque', estilo: 'path-offense' },
+          { ...novoCaminho(), titulo: 'Utilidade', estilo: 'path-utility' },
+        ] };
       default:
-        return { id: uid(), tipo: 'html', titulo: 'Seção livre', html: '<p class="lead">Conteúdo...</p>' };
+        return { id: uid(), tipo: 'html', html: '<p class="lead">Conteúdo...</p>' };
     }
   }
-  const novoCartao = () => ({ id: uid(), nome: 'Novo cartão', intro: '', itens: [novoItem()] });
-  const novoItem = () => ({ id: uid(), estilo: 'normal', rotulo: '', texto: '' });
-  const novoEstagio = () => ({ id: uid(), faixa: '', tipo: 'neutro', nome: '', efeito: '' });
-  const novaAcao = () => ({ id: uid(), acao: '', pontos: 0 });
+
+  // Modelos prontos de seção (botões "Adicionar seção")
+  function novaSecao(modelo) {
+    const s = (titulo, blocos) => ({ id: uid(), titulo, blocos });
+    switch (modelo) {
+      case 'texto': return s('Definição', [novoBloco('texto')]);
+      case 'regras': return s('Regras da Particularidade', [{
+        id: uid(), tipo: 'cartoes', colunas: 'auto', cartoes: [
+          novoCartao({ nome: 'Vantagens Mecânicas', classe: 'vantagem', itens: [novoItem('Nome da vantagem', 'Descrição.')] }),
+          novoCartao({ nome: 'Restrições Mecânicas', classe: 'restricao', itens: [novoItem('Nome da restrição', 'Descrição.')] }),
+        ] }]);
+      case 'destaque': return s('Nova Seção', [
+        { id: uid(), tipo: 'texto', paragrafos: ['Texto de introdução da seção.'] },
+        { id: uid(), tipo: 'cartoes', colunas: 1, cartoes: [novoCartao({
+          nome: 'Título do cartão', borda: MOLDURAS.dourada[0], corNome: MOLDURAS.dourada[1], intro: 'Descrição do cartão.' })] },
+      ]);
+      case 'regua': return s('Ressonância da Alma', [novoBloco('regua')]);
+      case 'etapas': return s('Estágios de Influência', [novoBloco('etapas')]);
+      case 'arvore': return s('Árvore de Habilidades', [novoBloco('arvore')]);
+      case 'html': return s('Seção livre', [novoBloco('html')]);
+      default: return s('Nova Seção', []);
+    }
+  }
 
   function novoCodigo(nome = 'Novo código') {
     return {
       id: uid(),
+      versao: 2,
       nome,
       atualizado: Date.now(),
       cssLink: CSS_PADRAO,
-      cores: { ...CORES_PADRAO },
+      estilo: { ativo: false, cores: { ...CORES_PADRAO }, extra: '' },
       cabecalho: { titulo: nome, subtitulo: '', tags: ['Particularidade'], svg: SVG_PADRAO },
-      secoes: [novaSecao('texto')],
+      secoes: [novaSecao('texto'), novaSecao('regras')],
     };
+  }
+
+  // Converte códigos salvos na versão anterior do gerenciador
+  function migrar(c) {
+    if (c.versao === 2) return c;
+    const n = novoCodigo(c.nome);
+    n.id = c.id;
+    n.atualizado = c.atualizado || Date.now();
+    n.cssLink = c.cssLink ?? n.cssLink;
+    n.cabecalho = c.cabecalho || n.cabecalho;
+    n.estilo = { ativo: true, cores: { ...CORES_PADRAO, ...(c.cores || {}) }, extra: '' };
+    n.secoes = (c.secoes || []).map((s) => {
+      let bloco;
+      if (s.tipo === 'texto') bloco = { id: uid(), tipo: 'texto', paragrafos: s.paragrafos || [] };
+      else if (s.tipo === 'cartoes') {
+        bloco = { id: uid(), tipo: 'cartoes', colunas: s.colunas || 1,
+          cartoes: (s.cartoes || []).map((k) => novoCartao({ ...k, formato: 'classico' })) };
+      } else if (s.tipo === 'ressonancia') {
+        const { titulo, tipo, ...resto } = s;
+        bloco = { ...resto, id: uid(), tipo: 'regua' };
+      } else bloco = { id: uid(), tipo: 'html', html: s.html || '' };
+      return { id: s.id || uid(), titulo: s.titulo || '', blocos: [bloco] };
+    });
+    return n;
   }
 
   /* ---------- Utilitários de texto ---------- */
@@ -89,8 +166,8 @@ const Gerador = (() => {
 
   // Adiciona ":" ao rótulo, a menos que já termine com pontuação
   const rotulo = (r) => (/[.:!?]$/.test(r.trim()) ? r.trim() : r.trim() + ':');
-
   const sinal = (n) => (n > 0 ? '+' + n : String(n));
+  const attr = (s) => String(s ?? '').replace(/"/g, '&quot;');
 
   function rgb(hex) {
     let h = String(hex || '').replace('#', '').trim();
@@ -100,14 +177,15 @@ const Gerador = (() => {
     return `${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}`;
   }
 
-  const secaoRessonancia = (c) => c.secoes.find((s) => s.tipo === 'ressonancia');
+  const blocos = (c) => c.secoes.flatMap((s) => s.blocos || []);
+  const blocoRegua = (c) => blocos(c).find((b) => b.tipo === 'regua');
+  const ind = (txt, n) => txt.split('\n').map((l) => (l ? ' '.repeat(n) + l : l)).join('\n');
 
-  /* ---------- Geração ---------- */
+  /* ---------- Geração: CSS ---------- */
 
-  function gerarCSS(c) {
-    const k = c.cores;
+  function cssCores(k) {
     const hl = rgb(k.destaque);
-    let css = `.rpg-card {
+    return `.rpg-card {
   --bg-color: ${k.fundo};
   --card-bg: ${k.cartao};
   --text-color: ${k.texto};
@@ -128,16 +206,15 @@ const Gerador = (() => {
 .rules-card { background: var(--card-bg) !important; border: 1px solid var(--border-color) !important; }
 .rules-name { color: var(--highlight) !important; }
 .school-desc ul li::before { color: var(--highlight) !important; }`;
+  }
 
-    const r = secaoRessonancia(c);
-    if (r) {
-      const g = r.regua;
-      const faixa = Number(g.max) - Number(g.min) || 1;
-      let pos = ((Number(g.inicial) - Number(g.min)) / faixa) * 100;
-      pos = Math.max(0, Math.min(100, Math.round(pos * 100) / 100));
-      const marcador = `${g.rotuloMarcador} (${sinal(Number(g.inicial))})`.replace(/"/g, '\\"');
-      css += `
-.alignment-wrapper { margin: 20px 0; padding: 10px; background: rgba(0,0,0,0.3); border-radius: 8px; border: 1px solid #333; }
+  function cssRegua(g, destaque) {
+    const hl = rgb(destaque);
+    const faixa = Number(g.max) - Number(g.min) || 1;
+    let pos = ((Number(g.inicial) - Number(g.min)) / faixa) * 100;
+    pos = Math.max(0, Math.min(100, Math.round(pos * 100) / 100));
+    const marcador = `${g.rotuloMarcador} (${sinal(Number(g.inicial))})`.replace(/"/g, '\\"');
+    return `.alignment-wrapper { margin: 20px 0; padding: 10px; background: rgba(0,0,0,0.3); border-radius: 8px; border: 1px solid #333; }
 .alignment-bar-container { height: 30px; background: linear-gradient(90deg, #c0392b 0%, #2c3e50 50%, #27ae60 100%); border-radius: 15px; position: relative; margin-bottom: 10px; box-shadow: inset 0 0 10px #000; }
 .alignment-marker { position: absolute; top: -5px; bottom: -5px; width: 4px; background: #fff; left: ${pos}%; box-shadow: 0 0 10px #fff; z-index: 2; }
 .alignment-marker::after { content: "${marcador}"; position: absolute; top: -25px; left: 50%; transform: translateX(-50%); font-size: 0.7em; color: #fff; white-space: nowrap; font-weight: bold; }
@@ -148,15 +225,23 @@ const Gerador = (() => {
 .alignment-table tr:nth-child(even) { background: rgba(255,255,255,0.02); }
 .evil-score { color: #e74c3c; font-weight: bold; }
 .good-score { color: #2ecc71; font-weight: bold; }`;
-    }
-    return css;
   }
 
-  const ind = (txt, n) => txt.split('\n').map((l) => (l ? ' '.repeat(n) + l : l)).join('\n');
+  function gerarCSS(c) {
+    const partes = [];
+    const e = c.estilo || {};
+    if (e.ativo) partes.push(cssCores(e.cores));
+    const r = blocoRegua(c);
+    if (r) partes.push(cssRegua(r.regua, (e.cores || CORES_PADRAO).destaque));
+    if (e.extra && e.extra.trim()) partes.push(e.extra.trim());
+    return partes.join('\n');
+  }
+
+  /* ---------- Geração: HTML ---------- */
 
   function gerarCabecalho(h) {
     const tags = (h.tags || []).filter((t) => t.trim())
-      .map((t) => `<span class="tag">${md(t.trim())}</span>`).join('');
+      .map((t) => `<span class="tag">${md(t.trim())}</span>`).join(' ');
     return `<div class="new-header">
   <div class="header-svg-container">
 ${ind((h.svg || '').trim(), 4)}
@@ -167,63 +252,63 @@ ${ind((h.svg || '').trim(), 4)}
 </div>`;
   }
 
-  const titulo = (t) => `  <div class="h"><div class="name">${md(t)}</div></div>`;
-
-  function gerarItem(it) {
-    const base = 'margin-bottom: 8px;';
+  function gerarItem(it, classico) {
+    const base = classico ? 'margin-bottom: 8px;' : '';
     const lbl = it.rotulo && it.rotulo.trim() ? `<b>${md(rotulo(it.rotulo))}</b> ` : '';
-    if (it.estilo === 'nota') return `<li style="${base} color:#e74c3c;"><i>${lbl}${md(it.texto)}</i></li>`;
-    if (it.estilo === 'destaque') return `<li style="${base} color:var(--highlight);">${lbl}${md(it.texto)}</li>`;
-    return `<li style="${base}">${lbl}${md(it.texto)}</li>`;
+    const st = (extra) => {
+      const s = [base, extra].filter(Boolean).join(' ');
+      return s ? ` style="${s}"` : '';
+    };
+    if (it.estilo === 'nota') return `<li${st('color:#e74c3c;')}><i>${lbl}${md(it.texto)}</i></li>`;
+    if (it.estilo === 'destaque') return `<li${st('color:var(--highlight);')}>${lbl}${md(it.texto)}</li>`;
+    return `<li${st('')}>${lbl}${md(it.texto)}</li>`;
   }
 
-  function gerarSecao(s) {
-    if (s.tipo === 'texto') {
-      const ps = s.paragrafos.filter((p) => p.trim()).map((p, i) =>
-        `  <p class="lead"${i ? ' style="margin-top:10px;"' : ''}>${md(p)}</p>`);
-      return `<div class="section">\n${titulo(s.titulo)}\n${ps.join('\n')}\n</div>`;
-    }
+  const paragrafosIntro = (txt) => String(txt || '').split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
 
-    if (s.tipo === 'cartoes') {
-      const n = Math.max(1, Math.min(4, Number(s.colunas) || 1));
-      const cols = n === 1 ? '1fr' : `repeat(${n}, 1fr)`;
-      const cards = s.cartoes.map((c) => {
-        const intro = c.intro && c.intro.trim() ? `\n    <p style="margin: 0 0 8px 0;">${md(c.intro)}</p>` : '';
-        const itens = c.itens.map((it) => '      ' + gerarItem(it)).join('\n');
-        const lista = c.itens.length
-          ? `\n    <ul style="padding-left: 15px; margin: 0; list-style: none; font-size: 0.9em; color: var(--text);">\n${itens}\n    </ul>`
-          : '';
-        return `<div class="rules-card">
-  <div class="rules-name">${md(c.nome)}</div>
+  function gerarCartao(k) {
+    const cls = ['rules-card', k.classe === 'vantagem' || k.classe === 'restricao' ? k.classe : ''].filter(Boolean).join(' ');
+    const stCard = k.borda && k.borda.trim() ? ` style="border-left: 4px solid ${attr(k.borda.trim())};"` : '';
+    const stNome = k.corNome && k.corNome.trim() ? ` style="color: ${attr(k.corNome.trim())};"` : '';
+    const nome = `<div class="rules-name"${stNome}>${md(k.nome)}</div>`;
+    const itens = (k.itens || []).map((it) => gerarItem(it, k.formato === 'classico'));
+
+    if (k.formato === 'classico') {
+      const intro = paragrafosIntro(k.intro).map((p) => `\n    <p style="margin: 0 0 8px 0;">${md(p)}</p>`).join('');
+      const lista = itens.length
+        ? `\n    <ul style="padding-left: 15px; margin: 0; list-style: none; font-size: 0.9em; color: var(--text);">\n${ind(itens.join('\n'), 6)}\n    </ul>`
+        : '';
+      return `<div class="${cls}"${stCard}>
+  ${nome}
   <div class="school-desc" style="margin-top: 0;">${intro}${lista}
   </div>
 </div>`;
-      });
-      return `<div class="section">
-${titulo(s.titulo)}
-  <div class="rules-grid" style="grid-template-columns: ${cols};">
-${ind(cards.join('\n'), 4)}
-  </div>
-</div>`;
     }
 
-    if (s.tipo === 'ressonancia') {
-      const g = s.regua;
-      const meio = Math.round((Number(g.min) + Number(g.max)) / 2);
-      const est = s.estagios.map((e) => {
-        const cel = e.tipo === 'maligno' ? '<td class="evil-score">'
-          : e.tipo === 'benigno' ? '<td class="good-score">' : '<td style="color:#888;">';
-        const nome = e.nome && e.nome.trim() ? `<b>${md(rotulo(e.nome))}</b> ` : '';
-        return `<tr>\n  ${cel}${md(e.faixa)}</td>\n  <td>${nome}${md(e.efeito)}</td>\n</tr>`;
-      }).join('\n');
-      const aco = s.acoes.map((a) => {
-        const p = Number(a.pontos) || 0;
-        const cel = p < 0 ? '<td class="evil-score">' : p > 0 ? '<td class="good-score">' : '<td style="color:#888;">';
-        return `<tr>\n  <td>${md(a.acao)}</td>\n  ${cel}${sinal(p)} ${Math.abs(p) === 1 ? 'Ponto' : 'Pontos'}</td>\n</tr>`;
-      }).join('\n');
-      const [ec1, ec2] = s.estagiosColunas;
-      const [ac1, ac2] = s.acoesColunas;
-      const blocoEst = s.estagios.length ? `
+    const intro = paragrafosIntro(k.intro).map((p) => `\n  <p style="margin: 5px 0 0 0; font-size: 0.95rem;">${md(p)}</p>`).join('');
+    const lista = itens.length ? `\n  <ul>\n${ind(itens.join('\n'), 4)}\n  </ul>` : '';
+    return `<div class="${cls}"${stCard}>
+  ${nome}${intro}${lista}
+</div>`;
+  }
+
+  function gerarRegua(s) {
+    const g = s.regua;
+    const meio = Math.round((Number(g.min) + Number(g.max)) / 2);
+    const est = s.estagios.map((e) => {
+      const cel = e.tipo === 'maligno' ? '<td class="evil-score">'
+        : e.tipo === 'benigno' ? '<td class="good-score">' : '<td style="color:#888;">';
+      const nome = e.nome && e.nome.trim() ? `<b>${md(rotulo(e.nome))}</b> ` : '';
+      return `<tr>\n  ${cel}${md(e.faixa)}</td>\n  <td>${nome}${md(e.efeito)}</td>\n</tr>`;
+    }).join('\n');
+    const aco = s.acoes.map((a) => {
+      const p = Number(a.pontos) || 0;
+      const cel = p < 0 ? '<td class="evil-score">' : p > 0 ? '<td class="good-score">' : '<td style="color:#888;">';
+      return `<tr>\n  <td>${md(a.acao)}</td>\n  ${cel}${sinal(p)} ${Math.abs(p) === 1 ? 'Ponto' : 'Pontos'}</td>\n</tr>`;
+    }).join('\n');
+    const [ec1, ec2] = s.estagiosColunas;
+    const [ac1, ac2] = s.acoesColunas;
+    const blocoEst = s.estagios.length ? `
 <p style="margin: 15px 0 5px 0; font-weight:bold; color:var(--highlight);">${md(s.estagiosTitulo)}</p>
 <table class="alignment-table">
   <thead>
@@ -236,7 +321,7 @@ ${ind(cards.join('\n'), 4)}
 ${ind(est, 4)}
   </tbody>
 </table>` : '';
-      const blocoAco = s.acoes.length ? `
+    const blocoAco = s.acoes.length ? `
 <p style="margin: 20px 0 5px 0; font-weight:bold; color:var(--highlight);">${md(s.acoesTitulo)}</p>
 <table class="alignment-table">
   <thead>
@@ -249,7 +334,7 @@ ${ind(est, 4)}
 ${ind(aco, 4)}
   </tbody>
 </table>` : '';
-      const corpo = `<p style="margin: 0 0 10px 0;">${md(s.intro)}</p>
+    const corpo = `<p style="margin: 0 0 10px 0;">${md(s.intro)}</p>
 <div class="alignment-wrapper">
   <div class="alignment-bar-container">
     <div class="alignment-marker"></div>
@@ -260,41 +345,91 @@ ${ind(aco, 4)}
     <span style="color:#2ecc71;">${sinal(Number(g.max))} (${md(g.rotuloMax)})</span>
   </div>
 </div>${blocoEst}${blocoAco}`;
-      return `<div class="section">
-${titulo(s.titulo)}
-  <div class="rules-card" style="margin-top: 10px;">
-    <div class="school-desc">
-${ind(corpo, 6)}
-    </div>
+    return `<div class="rules-card" style="margin-top: 10px;">
+  <div class="school-desc">
+${ind(corpo, 4)}
   </div>
 </div>`;
-    }
+  }
 
-    // html livre
-    return `<div class="section">\n${titulo(s.titulo)}\n${ind((s.html || '').trim(), 2)}\n</div>`;
+  function gerarBloco(b) {
+    switch (b.tipo) {
+      case 'texto':
+        return b.paragrafos.filter((p) => p.trim())
+          .map((p, i) => `<p class="lead"${i ? ' style="margin-top:10px;"' : ''}>${md(p)}</p>`).join('\n');
+      case 'cartoes': {
+        const n = Number(b.colunas);
+        const st = b.colunas === 'auto' || !n ? '' : ` style="grid-template-columns: ${n === 1 ? '1fr' : `repeat(${n}, 1fr)`};"`;
+        return `<div class="rules-grid"${st}>\n${ind(b.cartoes.map(gerarCartao).join('\n'), 2)}\n</div>`;
+      }
+      case 'regua':
+        return gerarRegua(b);
+      case 'etapas':
+        return `<ul class="influence-stepper">\n${ind(b.etapas.map((e) => {
+          const nv = Number(e.nivel) ? ` level-${Number(e.nivel)}` : '';
+          return `<li class="influence-step${nv}">
+  <div class="influence-step-title">${md(e.titulo)}</div>
+  <div class="influence-step-content">${md(e.texto)}</div>
+</li>`;
+        }).join('\n'), 2)}\n</ul>`;
+      case 'arvore':
+        return `<div class="skill-tree-grid">\n${ind(b.caminhos.map((cm) => {
+          const cls = cm.estilo && cm.estilo !== 'padrao' ? ` ${cm.estilo}` : '';
+          const nos = cm.nos.map((no) => `<div class="skill-node" data-tier="${Number(no.tier) || 1}">
+  ${no.custo && String(no.custo).trim() ? `<span class="skill-cost">${md(no.custo)}</span>` : ''}<span class="skill-name">${md(no.nome)}</span>
+  <div class="skill-desc">${md(no.texto)}</div>
+</div>`).join('\n');
+          return `<div class="skill-path${cls}">
+  <div class="skill-path-title">${md(cm.titulo)}</div>
+${ind(nos, 2)}
+</div>`;
+        }).join('\n'), 2)}\n</div>`;
+      default:
+        return (b.html || '').trim();
+    }
+  }
+
+  function gerarSecao(s) {
+    const corpo = (s.blocos || []).map(gerarBloco).filter(Boolean).join('\n');
+    if (s.solta) return corpo;
+    const h = s.titulo && s.titulo.trim() ? `<div class="h"><div class="name">${md(s.titulo)}</div></div>\n` : '';
+    return `<div class="section">\n${ind(h + corpo, 2)}\n</div>`;
   }
 
   function gerar(c, { compacto = false } = {}) {
     const link = c.cssLink && c.cssLink.trim()
-      ? `<link href="${c.cssLink.trim()}" rel="stylesheet" type="text/css">\n` : '';
+      ? `<link href="${attr(c.cssLink.trim())}" rel="stylesheet" type="text/css">\n` : '';
+    const css = gerarCSS(c);
+    const style = css ? `<style>\n${ind(css, 2)}\n</style>\n` : '';
     const secoes = c.secoes.map(gerarSecao).join('\n');
-    let out = `${link}<style>
-${ind(gerarCSS(c), 2)}
-</style>
-<div class="rpg-card">
+    let out = `${link}${style}<div class="rpg-card">
 ${ind(gerarCabecalho(c.cabecalho), 2)}
   <div class="main-content">
 ${ind(secoes, 4)}
   </div>
 </div>
 `;
-    if (compacto) {
-      out = out.replace(/\n\s*/g, ' ').replace(/\s{2,}/g, ' ').trim();
-    }
+    if (compacto) out = out.replace(/\n\s*/g, ' ').replace(/\s{2,}/g, ' ').trim();
     return out;
   }
 
   /* ---------- Importação (código -> campos) ---------- */
+
+  // Seletores que o próprio gerador cria; o resto do <style> vira "CSS adicional"
+  let seletoresConhecidos = null;
+  function regrasCSS(css) {
+    if (typeof CSSStyleSheet === 'undefined' || !CSSStyleSheet.prototype.replaceSync) return null;
+    const folha = new CSSStyleSheet();
+    folha.replaceSync(css.replace(/@import[^;]+;/g, ''));
+    return [...folha.cssRules];
+  }
+  function conhecidos() {
+    if (!seletoresConhecidos) {
+      const regras = regrasCSS(cssCores(CORES_PADRAO) + '\n' + cssRegua(novoBloco('regua').regua, '#000000')) || [];
+      seletoresConhecidos = new Set(regras.map((r) => r.selectorText).filter(Boolean));
+    }
+    return seletoresConhecidos;
+  }
 
   function importar(codigo) {
     const doc = new DOMParser().parseFromString(`<body>${codigo}</body>`, 'text/html');
@@ -307,51 +442,91 @@ ${ind(secoes, 4)}
     const link = doc.querySelector('link[rel="stylesheet"]');
     c.cssLink = link ? link.getAttribute('href') : '';
 
+    // CSS: cores conhecidas + o que sobrar vira CSS adicional
     const css = [...doc.querySelectorAll('style')].map((s) => s.textContent).join('\n');
     const v = (nome) => (css.match(new RegExp(`--${nome}\\s*:\\s*([^;]+);`)) || [])[1]?.trim();
-    c.cores = {
-      fundo: v('bg-color') || CORES_PADRAO.fundo,
-      cartao: v('card-bg') || CORES_PADRAO.cartao,
-      texto: v('text-color') || CORES_PADRAO.texto,
-      destaque: v('highlight') || CORES_PADRAO.destaque,
-      borda: v('border-color') || CORES_PADRAO.borda,
+    c.estilo = {
+      ativo: /--highlight\s*:/.test(css) && /--bg-color\s*:/.test(css),
+      cores: {
+        fundo: v('bg-color') || CORES_PADRAO.fundo,
+        cartao: v('card-bg') || CORES_PADRAO.cartao,
+        texto: v('text-color') || CORES_PADRAO.texto,
+        destaque: v('highlight') || CORES_PADRAO.destaque,
+        borda: v('border-color') || CORES_PADRAO.borda,
+      },
+      extra: '',
     };
+    if (css.trim()) {
+      const imports = (css.match(/@import[^;]+;/g) || []).join('\n');
+      const regras = regrasCSS(css);
+      if (regras) {
+        const extra = regras.filter((r) => !conhecidos().has(r.selectorText)).map((r) => r.cssText);
+        c.estilo.extra = [imports, ...extra].filter(Boolean).join('\n');
+      }
+    }
 
     const txt = (sel, raiz = card) => paraMd(raiz.querySelector(sel)?.innerHTML || '');
     const svg = card.querySelector('.header-svg-container');
     c.cabecalho = {
-      titulo: txt('.title .g') || txt('.title'),
+      titulo: card.querySelector('.title .g') ? txt('.title .g') : txt('.title'),
       subtitulo: txt('.subtitle-line'),
       tags: [...card.querySelectorAll('.tag-container .tag')].map((t) => paraMd(t.innerHTML)),
       svg: svg ? svg.innerHTML.trim().replace(/>\s+</g, '>\n  <').replace(/\n  <\/svg>/, '\n</svg>') : '',
     };
     c.nome = c.cabecalho.titulo.replace(/\*/g, '') || 'Código importado';
 
-    const secoes = card.querySelectorAll('.main-content > .section');
-    secoes.forEach((sec) => {
-      const tituloSec = txt('.h .name', sec);
-      if (sec.querySelector('.alignment-wrapper, .alignment-table')) {
-        c.secoes.push(lerRessonancia(sec, tituloSec, css));
-      } else if (sec.querySelector('.rules-card')) {
-        c.secoes.push(lerCartoes(sec, tituloSec));
-      } else if (sec.querySelector('p.lead') && sec.children.length === sec.querySelectorAll(':scope > p.lead').length + 1) {
-        c.secoes.push({
-          id: uid(), tipo: 'texto', titulo: tituloSec,
-          paragrafos: [...sec.querySelectorAll(':scope > p.lead')].map((p) => paraMd(p.innerHTML)),
-        });
-      } else {
-        const clone = sec.cloneNode(true);
-        clone.querySelector('.h')?.remove();
-        c.secoes.push({ id: uid(), tipo: 'html', titulo: tituloSec, html: clone.innerHTML.trim() });
-      }
+    const main = card.querySelector('.main-content') || card;
+    [...main.children].forEach((el) => {
+      if (el.classList.contains('new-header')) return;
+      if (el.classList.contains('section')) c.secoes.push(lerSecao(el, css));
+      else c.secoes.push({ id: uid(), titulo: '', solta: true, blocos: [{ id: uid(), tipo: 'html', html: el.outerHTML }] });
     });
     return c;
+  }
+
+  function lerSecao(sec, css) {
+    const s = { id: uid(), titulo: '', blocos: [] };
+    let pendente = [];
+    let anterior = null;
+    const fechar = () => {
+      if (pendente.length) s.blocos.push({ id: uid(), tipo: 'html', html: pendente.join('\n') });
+      pendente = [];
+    };
+    const add = (b) => { fechar(); s.blocos.push(b); anterior = b; };
+
+    sec.childNodes.forEach((n) => {
+      if (n.nodeType === 3) {
+        if (n.textContent.trim()) { pendente.push(n.textContent.trim()); anterior = null; }
+        return;
+      }
+      if (n.nodeType !== 1) return;
+      if (n.classList.contains('h') && !s.titulo && !s.blocos.length) {
+        s.titulo = paraMd(n.querySelector('.name')?.innerHTML || n.innerHTML);
+        return;
+      }
+      if (n.matches('p.lead')) {
+        if (anterior && anterior.tipo === 'texto' && !pendente.length) anterior.paragrafos.push(paraMd(n.innerHTML));
+        else add({ id: uid(), tipo: 'texto', paragrafos: [paraMd(n.innerHTML)] });
+        return;
+      }
+      if (n.querySelector('.alignment-wrapper, .alignment-table')) return add(lerRegua(n, css));
+      if (n.matches('.rules-grid')) {
+        const b = lerCartoes(n);
+        if (b) return add(b);
+      }
+      if (n.matches('ul.influence-stepper, ol.influence-stepper')) return add(lerEtapas(n));
+      if (n.matches('.skill-tree-grid')) return add(lerArvore(n));
+      pendente.push(n.outerHTML);
+      anterior = null;
+    });
+    fechar();
+    return s;
   }
 
   function separarRotulo(el) {
     // Retorna { rotulo, texto } quando o elemento começa com <b>Rótulo:</b>
     const primeiro = [...el.childNodes].find((n) => n.nodeType !== 3 || n.textContent.trim());
-    if (primeiro && primeiro.nodeName === 'B') {
+    if (primeiro && (primeiro.nodeName === 'B' || primeiro.nodeName === 'STRONG')) {
       const r = paraMd(primeiro.innerHTML).replace(/:\s*$/, '');
       const clone = el.cloneNode(true);
       const b = [...clone.childNodes].find((n) => n.nodeType !== 3 || n.textContent.trim());
@@ -361,48 +536,96 @@ ${ind(secoes, 4)}
     return { rotulo: '', texto: paraMd(el.innerHTML) };
   }
 
-  function lerCartoes(sec, tituloSec) {
-    const grid = sec.querySelector('.rules-grid');
-    const gtc = grid?.style.gridTemplateColumns || '1fr';
-    const rep = gtc.match(/repeat\((\d+)/);
-    const colunas = rep ? Number(rep[1]) : (gtc.match(/1fr/g) || [1]).length;
-    const cartoes = [...sec.querySelectorAll('.rules-card')].map((rc) => {
-      const desc = rc.querySelector('.school-desc') || rc;
-      const intro = desc.querySelector(':scope > p');
-      const itens = [...desc.querySelectorAll('li')].map((li) => {
-        const cor = (li.style.color || '').replace(/\s/g, '');
-        let estilo = 'normal';
-        let alvo = li;
-        const soItalico = li.children.length === 1 && li.firstElementChild.nodeName === 'I'
-          && li.textContent.trim() === li.firstElementChild.textContent.trim();
-        if (/e74c3c|231,76,60|red/i.test(cor) || soItalico) {
-          estilo = 'nota';
-          if (soItalico) alvo = li.firstElementChild;
-        } else if (cor) {
-          estilo = 'destaque';
-        }
-        return { id: uid(), estilo, ...separarRotulo(alvo) };
-      });
-      return {
-        id: uid(),
-        nome: paraMd(rc.querySelector('.rules-name')?.innerHTML || ''),
-        intro: intro ? paraMd(intro.innerHTML) : '',
-        itens,
-      };
-    });
-    return { id: uid(), tipo: 'cartoes', titulo: tituloSec, colunas, cartoes };
+  const estiloRaw = (el, prop) => {
+    const m = (el?.getAttribute('style') || '').match(new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*([^;]+)`, 'i'));
+    return m ? m[1].trim() : '';
+  };
+
+  function lerItem(li) {
+    const cor = estiloRaw(li, 'color').replace(/\s/g, '');
+    let estilo = 'normal';
+    let alvo = li;
+    const soItalico = li.children.length === 1 && li.firstElementChild.nodeName === 'I'
+      && li.textContent.trim() === li.firstElementChild.textContent.trim();
+    if (/e74c3c|231,76,60|red/i.test(cor) || soItalico) {
+      estilo = 'nota';
+      if (soItalico) alvo = li.firstElementChild;
+    } else if (cor) {
+      estilo = 'destaque';
+    }
+    return { id: uid(), estilo, ...separarRotulo(alvo) };
   }
 
-  function lerRessonancia(sec, tituloSec, css) {
-    const s = novaSecao('ressonancia');
-    s.titulo = tituloSec;
-    const desc = sec.querySelector('.school-desc') || sec;
+  // Retorna null se o grid tiver algo que o editor não sabe representar
+  function lerCartoes(grid) {
+    const gtc = estiloRaw(grid, 'grid-template-columns');
+    let colunas = 'auto';
+    if (gtc) {
+      const rep = gtc.match(/repeat\((\d+)/);
+      colunas = rep ? Number(rep[1]) : (gtc.match(/1fr/g) || [1]).length;
+    }
+    const cartoes = [];
+    for (const rc of grid.children) {
+      if (!rc.classList.contains('rules-card')) return null;
+      const desc = rc.querySelector(':scope > .school-desc');
+      const raiz = desc || rc;
+      const permitidos = desc ? ['P', 'UL'] : ['P', 'UL'];
+      const filhos = [...raiz.children].filter((x) => !x.classList.contains('rules-name'));
+      if (filhos.some((x) => !permitidos.includes(x.nodeName)) || (desc && [...rc.children].some((x) => x !== desc && !x.classList.contains('rules-name')))) return null;
+      if (rc.querySelectorAll('ul').length > 1) return null;
+      const nomeEl = rc.querySelector('.rules-name');
+      cartoes.push(novoCartao({
+        nome: paraMd(nomeEl?.innerHTML || ''),
+        classe: rc.classList.contains('vantagem') ? 'vantagem' : rc.classList.contains('restricao') ? 'restricao' : 'normal',
+        borda: (estiloRaw(rc, 'border-left').match(/solid\s+(.+)$/i) || [])[1] || '',
+        corNome: estiloRaw(nomeEl, 'color'),
+        formato: desc ? 'classico' : 'padrao',
+        intro: [...raiz.querySelectorAll(':scope > p')].map((p) => paraMd(p.innerHTML)).join('\n\n'),
+        itens: [...raiz.querySelectorAll(':scope > ul > li')].map(lerItem),
+      }));
+    }
+    return { id: uid(), tipo: 'cartoes', colunas, cartoes };
+  }
+
+  function lerEtapas(ul) {
+    return {
+      id: uid(), tipo: 'etapas',
+      etapas: [...ul.querySelectorAll(':scope > .influence-step')].map((li) => ({
+        id: uid(),
+        nivel: Number((li.className.match(/level-(\d)/) || [])[1] || 0),
+        titulo: paraMd(li.querySelector('.influence-step-title')?.innerHTML || ''),
+        texto: paraMd(li.querySelector('.influence-step-content')?.innerHTML || ''),
+      })),
+    };
+  }
+
+  function lerArvore(grid) {
+    return {
+      id: uid(), tipo: 'arvore',
+      caminhos: [...grid.querySelectorAll(':scope > .skill-path')].map((p) => ({
+        id: uid(),
+        titulo: paraMd(p.querySelector('.skill-path-title')?.innerHTML || ''),
+        estilo: ['path-defense', 'path-offense', 'path-utility'].find((k) => p.classList.contains(k)) || 'padrao',
+        nos: [...p.querySelectorAll('.skill-node')].map((n) => ({
+          id: uid(),
+          nome: paraMd(n.querySelector('.skill-name')?.innerHTML || ''),
+          custo: paraMd(n.querySelector('.skill-cost')?.innerHTML || ''),
+          tier: Number(n.dataset.tier) || 1,
+          texto: paraMd(n.querySelector('.skill-desc')?.innerHTML || ''),
+        })),
+      })),
+    };
+  }
+
+  function lerRegua(el, css) {
+    const s = novoBloco('regua');
+    const desc = el.querySelector('.school-desc') || el;
     const ps = [...desc.querySelectorAll(':scope > p')];
     const wrapper = desc.querySelector('.alignment-wrapper');
     const intro = ps.find((p) => !wrapper || (p.compareDocumentPosition(wrapper) & Node.DOCUMENT_POSITION_FOLLOWING));
     s.intro = intro ? paraMd(intro.innerHTML) : '';
 
-    const labels = [...sec.querySelectorAll('.alignment-labels span')].map((sp) => {
+    const labels = [...el.querySelectorAll('.alignment-labels span')].map((sp) => {
       const m = sp.textContent.trim().match(/^([+-]?\d+)\s*\((.*)\)$/);
       return m ? { n: Number(m[1]), t: m[2] } : { n: null, t: sp.textContent.trim() };
     });
@@ -423,7 +646,7 @@ ${ind(secoes, 4)}
 
     const tabelas = [...desc.querySelectorAll('table.alignment-table')];
     const tituloDe = (tab) => {
-      let p = tab.previousElementSibling;
+      const p = tab.previousElementSibling;
       return p && p.nodeName === 'P' ? paraMd(p.innerHTML) : '';
     };
     const cabec = (tab) => [...tab.querySelectorAll('thead th')].map((th) => paraMd(th.innerHTML));
@@ -432,7 +655,6 @@ ${ind(secoes, 4)}
     s.acoes = [];
     tabelas.forEach((tab) => {
       const linhas = [...tab.querySelectorAll('tbody tr')];
-      // Tabela de ações: segunda coluna é "N Pontos"
       const ehAcoes = linhas.length && linhas.every((tr) => /^[+-]?\d+\s*Pontos?$/i.test(tr.cells[1]?.textContent.trim() || ''));
       if (ehAcoes) {
         s.acoesTitulo = tituloDe(tab) || s.acoesTitulo;
@@ -458,7 +680,9 @@ ${ind(secoes, 4)}
   }
 
   return {
-    novoCodigo, novaSecao, novoCartao, novoItem, novoEstagio, novaAcao,
-    gerar, importar, uid, md, rgb,
+    CSS_BASE, MOLDURAS,
+    novoCodigo, novaSecao, novoBloco, novoCartao, novoItem, novoEstagio, novaAcao,
+    novaEtapa, novoCaminho, novoNo, novoParagrafo,
+    migrar, gerar, importar, uid, md, rgb,
   };
 })();

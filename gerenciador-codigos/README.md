@@ -1,22 +1,23 @@
-# Gerenciador de Códigos
+# Gerenciador de Particularidades
 
 Site para editar os códigos de ficha (`<div class="rpg-card">`) por meio de campos, sem mexer no HTML na mão.
+A interface segue o padrão visual do [Grimório](https://goldenagerpg.github.io/grimoriodetecnicas.io/).
 
 Abra `index.html` no navegador. Não precisa instalar nada.
 
 ## O que dá para fazer
 
-- **Guardar vários códigos**: criar, duplicar, excluir e buscar. Tudo é salvo automaticamente no navegador.
-- **Colar um código existente**: o botão *Colar código* lê o HTML e preenche os campos sozinho.
-- **Editar pelos campos**:
-  - **Cabeçalho**: título, subtítulo, etiquetas e ícone SVG.
-  - **Aparência**: cores (destaque, fundo, cartões, texto, bordas) e o link do CSS base.
-  - **Seções**: dá para adicionar, reordenar, duplicar e excluir:
-    - *Texto*: parágrafos (ex.: Definição).
-    - *Cartões*: cartões com itens do tipo normal, destaque ou nota (ex.: Características).
-    - *Régua de alinhamento*: mínimo e máximo, pontos iniciais (o marcador se move sozinho), estágios e tabela de ações com pontos, filtro e ordenação.
-    - *HTML livre*: para trechos que o gerenciador não reconhece.
-- **Prévia ao vivo** e **código gerado**: copiar, baixar `.html` ou gerar tudo em **linha única** para fóruns.
+- **Guardar vários códigos**: escolher, criar, duplicar e excluir pelo topo do editor. Tudo é salvo automaticamente no navegador.
+- **Importar qualquer código** do padrão `particularidades.css`. O botão *Importar* preenche os campos sozinho:
+  - cabeçalho (ícone SVG ou kanji, título, subtítulo, etiquetas);
+  - parágrafos `p.lead`;
+  - cartões `rules-card`: normais, **vantagem** (+), **restrição** (−) e com **moldura lateral** (dourada, vermelha, personalizada…), nos formatos novo e clássico (`school-desc`);
+  - régua de alinhamento (estágios e tabela de ações);
+  - etapas de influência (`influence-stepper`);
+  - árvore de habilidades (`skill-tree-grid`);
+  - o que não for reconhecido vira **HTML livre**, e o CSS desconhecido vai para *CSS adicional*. Nada se perde.
+- **Arrastar e soltar** pela alça (⠿) para reordenar seções, blocos, cartões, itens, estágios, ações, etapas e habilidades. Funciona com mouse e no toque.
+- **Prévia ao vivo** com o CSS real do fórum e **código final** para copiar ou baixar. A opção *Linha única* vem ligada, como no Grimório.
 - **Backup**: exporte e restaure todos os códigos num arquivo `.json`.
 
 Nos campos de texto, use `**negrito**` e `*itálico*`.
